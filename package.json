@@ -1,0 +1,40 @@
+{
+  "name": "agentshield-mcp",
+  "version": "1.2.0",
+  "description": "AgentShield MCP server — real-time smart contract security for AI agents. Verify contracts for honeypots, rug pulls, and risks via x402 micropayments.",
+  "main": "index.js",
+  "bin": {
+    "agentshield-mcp": "index.js"
+  },
+  "mcpName": "win.agentshield/security",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "ai-agents",
+    "smart-contracts",
+    "security",
+    "web3",
+    "blockchain",
+    "x402",
+    "honeypot",
+    "defi",
+    "solana",
+    "ethereum"
+  ],
+  "author": "AgentShield",
+  "license": "MIT",
+  "homepage": "https://agentshield.win",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/agentshield/agentshield-mcp"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
