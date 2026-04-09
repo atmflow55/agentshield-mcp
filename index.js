@@ -10,7 +10,7 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprot
 const BASE_URL = "https://agentshield.win";
 
 const server = new Server(
-  { name: "agentshield", version: "2.0.0" },
+  { name: "agentshield", version: "2.1.0" },
   { capabilities: { tools: {} } }
 );
 
@@ -281,10 +281,52 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: "get_leaderboard",
-      description: "View top agents by reputation — most confirmed threat reports, most active protectors.",
+      description: "View the competitive agent leaderboard — race to 1M verifications. Everyone competes (free + paid). Top agents win prizes. Filter by category: total, verifications, scans, reports, streak.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          category: {
+            type: "string",
+            description: "Ranking category: total, verifications, scans, reports, streak",
+            default: "total"
+          },
+          api_key: {
+            type: "string",
+            description: "Your API key (optional, shows your rank)"
+          }
+        }
+      }
+    },
+    {
+      name: "get_giveaway",
+      description: "View the active giveaway, prizes, and past winners. Giveaway prizes are for paid subscribers only.",
       inputSchema: {
         type: "object",
         properties: {}
+      }
+    },
+    {
+      name: "enter_giveaway",
+      description: "Enter the active giveaway. PAID SUBSCRIBERS ONLY. Higher plans = more tickets (Builder 10x, Pro 5x, Starter 1x).",
+      inputSchema: {
+        type: "object",
+        properties: {
+          api_key: { type: "string", description: "Your API key (must be paid subscriber)" },
+          agent_name: { type: "string", description: "Your display name for the leaderboard" }
+        },
+        required: ["api_key"]
+      }
+    },
+    {
+      name: "set_agent_name",
+      description: "Set your display name on the leaderboard. Requires API key.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "Display name (max 32 chars)" },
+          api_key: { type: "string", description: "Your API key" }
+        },
+        required: ["name", "api_key"]
       }
     }
   ]
@@ -451,7 +493,36 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 
   if (name === "get_leaderboard") {
-    const res = await fetch(`${BASE_URL}/leaderboard`);
+    const headers = {};
+    if (args.api_key) headers["X-API-Key"] = args.api_key;
+    const params = args.category ? `?category=${args.category}` : "";
+    const res = await fetch(`${BASE_URL}/leaderboard${params}`, { headers });
+    const data = await res.json();
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+
+  if (name === "get_giveaway") {
+    const res = await fetch(`${BASE_URL}/giveaway`);
+    const data = await res.json();
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+
+  if (name === "enter_giveaway") {
+    const res = await fetch(`${BASE_URL}/giveaway/enter`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-API-Key": args.api_key },
+      body: JSON.stringify({ agent_name: args.agent_name }),
+    });
+    const data = await res.json();
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+
+  if (name === "set_agent_name") {
+    const res = await fetch(`${BASE_URL}/agent-name`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-API-Key": args.api_key },
+      body: JSON.stringify({ name: args.name }),
+    });
     const data = await res.json();
     return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
   }
