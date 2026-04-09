@@ -10,7 +10,7 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprot
 const BASE_URL = "https://agentshield.win";
 
 const server = new Server(
-  { name: "agentshield", version: "1.3.0" },
+  { name: "agentshield", version: "1.4.0" },
   { capabilities: { tools: {} } }
 );
 
@@ -40,14 +40,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       }
     },
     {
-      name: "get_stats",
-      description: "Get AgentShield platform statistics: contracts verified, wallets monitored, threats blocked.",
-      inputSchema: {
-        type: "object",
-        properties: {}
-      }
-    },
-    {
       name: "scan_contract",
       description: "Full threat detection scan: honeypots, rug pulls, mint authority, freeze authority, proxy backdoors, tax manipulation, blacklist functions, liquidity analysis, and holder concentration. 14+ checks in under 2 seconds. Use this before trading any token.",
       inputSchema: {
@@ -68,7 +60,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: "deep_scan",
-      description: "Deep forensic analysis: ownership, permissions, exploit pattern matching, bytecode analysis, and risk breakdown. Goes deeper than verify or scan.",
+      description: "Deep forensic analysis: ownership, permissions, exploit pattern matching, bytecode analysis, and risk breakdown. Goes deeper than verify or scan. 2 free/day, unlimited for Pro/Builder subscribers.",
       inputSchema: {
         type: "object",
         properties: {
@@ -87,25 +79,88 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: "monitor_wallet",
-      description: "Watch a wallet address for drain threats and suspicious activity in real-time.",
+      description: "Watch a wallet for drain threats. When balance drops beyond threshold in a single transaction, fires an alert to your callback URL and auto-freezes all linked agent wallets.",
       inputSchema: {
         type: "object",
         properties: {
           wallet: {
             type: "string",
-            description: "Wallet address to monitor"
+            description: "Wallet address to monitor (0x...)"
           },
-          webhook_url: {
+          callback_url: {
             type: "string",
-            description: "URL to POST alerts to when a threat is detected (optional)"
+            description: "Public HTTPS URL to POST drain alerts to"
           },
-          chain: {
+          threshold_pct: {
+            type: "number",
+            description: "Balance drop percentage to trigger alert (default: 20)",
+            default: 20
+          },
+          agent_id: {
             type: "string",
-            description: "Chain ID (default: 1 = Ethereum)",
-            default: "1"
+            description: "Agent identifier for grouping monitored wallets"
+          },
+          chains: {
+            type: "array",
+            items: { type: "string" },
+            description: "Chains to monitor (default: ['ethereum', 'base'])",
+            default: ["ethereum", "base"]
+          }
+        },
+        required: ["wallet", "callback_url"]
+      }
+    },
+    {
+      name: "freeze_wallet",
+      description: "Emergency freeze all monitored wallets for a wallet address or agent. Stops all transaction signing until manually unfrozen. Requires API key (X-Agent-Key) or wallet ownership.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          wallet: {
+            type: "string",
+            description: "Wallet address to freeze"
+          },
+          agent_id: {
+            type: "string",
+            description: "Agent ID to freeze all wallets for"
+          },
+          reason: {
+            type: "string",
+            description: "Reason for freeze",
+            default: "Threat detected"
+          },
+          api_key: {
+            type: "string",
+            description: "AgentShield API key for authorization"
+          }
+        }
+      }
+    },
+    {
+      name: "get_alerts",
+      description: "Get recent drain alerts and threat notifications for a wallet address.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          wallet: {
+            type: "string",
+            description: "Wallet address to check alerts for"
+          },
+          limit: {
+            type: "number",
+            description: "Max alerts to return (default: 20, max: 100)",
+            default: 20
           }
         },
         required: ["wallet"]
+      }
+    },
+    {
+      name: "get_stats",
+      description: "Get AgentShield platform statistics: contracts verified, wallets monitored, threats blocked.",
+      inputSchema: {
+        type: "object",
+        properties: {}
       }
     }
   ]
@@ -117,9 +172,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   if (name === "get_stats") {
     const res = await fetch(`${BASE_URL}/stats`);
     const data = await res.json();
-    return {
-      content: [{ type: "text", text: JSON.stringify(data, null, 2) }]
-    };
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
   }
 
   if (name === "verify_contract") {
@@ -139,38 +192,60 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         isError: true
       };
     }
-
-    return {
-      content: [{ type: "text", text: JSON.stringify(data, null, 2) }]
-    };
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
   }
 
   if (name === "scan_contract") {
     const res = await fetch(`${BASE_URL}/scan?contract=${encodeURIComponent(args.contract)}&chain=${args.chain || "solana"}`);
     const data = await res.json();
-    return {
-      content: [{ type: "text", text: JSON.stringify(data, null, 2) }]
-    };
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
   }
 
   if (name === "deep_scan") {
     const res = await fetch(`${BASE_URL}/deep-scan?contract=${encodeURIComponent(args.contract)}&chain=${args.chain || "ethereum"}`);
     const data = await res.json();
-    return {
-      content: [{ type: "text", text: JSON.stringify(data, null, 2) }]
-    };
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
   }
 
   if (name === "monitor_wallet") {
     const res = await fetch(`${BASE_URL}/monitor`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ wallet: args.wallet, webhook_url: args.webhook_url, chain: args.chain || "1" })
+      body: JSON.stringify({
+        wallet: args.wallet,
+        callback_url: args.callback_url,
+        threshold_pct: args.threshold_pct || 20,
+        agent_id: args.agent_id || undefined,
+        chains: args.chains || ["ethereum", "base"],
+      }),
     });
     const data = await res.json();
-    return {
-      content: [{ type: "text", text: JSON.stringify(data, null, 2) }]
-    };
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+
+  if (name === "freeze_wallet") {
+    const headers = { "Content-Type": "application/json" };
+    if (args.api_key) headers["X-Agent-Key"] = args.api_key;
+    if (args.wallet) headers["X-Wallet"] = args.wallet;
+
+    const res = await fetch(`${BASE_URL}/freeze`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        wallet: args.wallet || undefined,
+        agent_id: args.agent_id || undefined,
+        reason: args.reason || "Threat detected",
+      }),
+    });
+    const data = await res.json();
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+
+  if (name === "get_alerts") {
+    const params = new URLSearchParams({ wallet: args.wallet, limit: String(args.limit || 20) });
+    const res = await fetch(`${BASE_URL}/alerts?${params}`);
+    const data = await res.json();
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
   }
 
   throw new Error(`Unknown tool: ${name}`);
