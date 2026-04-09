@@ -10,7 +10,7 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprot
 const BASE_URL = "https://agentshield.win";
 
 const server = new Server(
-  { name: "agentshield", version: "1.0.0" },
+  { name: "agentshield", version: "1.3.0" },
   { capabilities: { tools: {} } }
 );
 
@@ -45,6 +45,44 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       inputSchema: {
         type: "object",
         properties: {}
+      }
+    },
+    {
+      name: "scan_contract",
+      description: "Full threat detection scan: honeypots, rug pulls, mint authority, freeze authority, proxy backdoors, tax manipulation, blacklist functions, liquidity analysis, and holder concentration. 14+ checks in under 2 seconds. Use this before trading any token.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          contract: {
+            type: "string",
+            description: "Token/contract address to scan"
+          },
+          chain: {
+            type: "string",
+            description: "Chain: solana, ethereum, base, bsc, polygon, arbitrum, optimism",
+            default: "solana"
+          }
+        },
+        required: ["contract"]
+      }
+    },
+    {
+      name: "deep_scan",
+      description: "Deep forensic analysis: ownership, permissions, exploit pattern matching, bytecode analysis, and risk breakdown. Goes deeper than verify or scan.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          contract: {
+            type: "string",
+            description: "Contract address (0x... for EVM)"
+          },
+          chain: {
+            type: "string",
+            description: "Chain: ethereum, base, polygon, arbitrum, optimism, bnb, avalanche",
+            default: "ethereum"
+          }
+        },
+        required: ["contract"]
       }
     },
     {
@@ -102,6 +140,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       };
     }
 
+    return {
+      content: [{ type: "text", text: JSON.stringify(data, null, 2) }]
+    };
+  }
+
+  if (name === "scan_contract") {
+    const res = await fetch(`${BASE_URL}/scan?contract=${encodeURIComponent(args.contract)}&chain=${args.chain || "solana"}`);
+    const data = await res.json();
+    return {
+      content: [{ type: "text", text: JSON.stringify(data, null, 2) }]
+    };
+  }
+
+  if (name === "deep_scan") {
+    const res = await fetch(`${BASE_URL}/deep-scan?contract=${encodeURIComponent(args.contract)}&chain=${args.chain || "ethereum"}`);
+    const data = await res.json();
     return {
       content: [{ type: "text", text: JSON.stringify(data, null, 2) }]
     };
