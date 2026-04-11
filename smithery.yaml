@@ -1,0 +1,23 @@
+name: agentshield-mcp
+displayName: AgentShield - Smart Contract Security
+description: Smart contract verification, wallet monitoring & threat detection for AI agents. Verify any contract for honeypots, rug pulls, and risks before transacting.
+icon: shield
+category: security
+tags:
+  - security
+  - smart-contracts
+  - web3
+  - blockchain
+  - defi
+  - solana
+  - ethereum
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    properties: {}
+  commandFunction: |-
+    (config) => ({
+      command: 'npx',
+      args: ['-y', 'agentshield-mcp']
+    })
