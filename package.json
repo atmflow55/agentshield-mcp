@@ -30,7 +30,7 @@
   "homepage": "https://agentshield.win",
   "repository": {
     "type": "git",
-    "url": "https://github.com/agentshield/agentshield-mcp"
+    "url": "https://github.com/atmflow55/agentshield-mcp"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0"
